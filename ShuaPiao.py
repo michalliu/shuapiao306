@@ -830,6 +830,13 @@ class HttpAuto:
 
     @retries(3)
     def queryMyOrderNoComplete(self):
+        u"""
+        检查订票是否成功
+        0 订票成功
+        1 订单排队中
+        2 订票失败
+        3 订票失败，没有足够的票
+        """
         logger.info("#############################Step14:queryMyOrderNoComplete #########")
         url_result = "https://kyfw.12306.cn/otn/queryOrder/queryMyOrderNoComplete"
         data = [
@@ -844,19 +851,26 @@ class HttpAuto:
         logger.info("recv queryMyOrderNoComplete")
         if res_json['status'] != True:
             logger.info(u"queryMyOrderNoComplete Fail!")
-            return False
+            logger.error(data.decode("utf-8"))
+            return 2
         if not res_json.has_key('data'):
             logger.info(u"没有订单信息!")
             logger.error(data.decode("utf-8"))
-            return False
-        if not res_json['data'].has_key('orderDBList'):
-            logger.info(u"出票失败，没有足够的票!")
-            logger.error(data.decode("utf-8"))
-            return False
-        else:
+            return 2
+        if res_json['data'].has_key('orderCacheDTO'):
+            if res_json['data']['orderCacheDTO'].has_key['message']:
+                logger.info(u"出票失败! %s", res_json['data']['orderCacheDTO'].has_key['message']['message'])
+                logger.error(data.decode("utf-8"))
+                return 3
+            else:
+                logger.info(u"出票排队中!")
+                logger.error(data.decode("utf-8"))
+                return 1
+        if res_json['data'].has_key('orderDBList'):
             logger.info(u"出票成功，请用浏览器打开未完成订单!")
-            logger.info("#############################Success check ticket in webbrowser #########")
-            return True
+            return 0
+        logger.error(data.decode("utf-8"))
+        return 2
 
     @retries(3)
     def get_passenger_info(self):
@@ -918,10 +932,19 @@ class HttpAuto:
         if not self.resultOrderForDcQueue():
             return False
         #Step14
-        if not self.queryMyOrderNoComplete():
-            return False
-        return True
-
+        order_success=False
+        while 1:
+            order_stat=self.queryMyOrderNoComplete()
+            if order_stat == 0:
+                order_success = True
+                break;
+            elif order_stat == 1:
+                time.sleep(1) # recheck order status
+                continue
+            elif order_stat > 1:
+                order_success = False
+                break
+        return order_success
 
 def clean_temp_files():
     logger.info("clean_temp_files")
