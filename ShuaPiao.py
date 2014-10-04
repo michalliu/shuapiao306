@@ -408,9 +408,9 @@ class HttpAuto:
         g_conn.request('POST', url_login, body=post_data, headers=self.proxy_ext_header)
         res = g_conn.getresponse()
         logger.info("recv loginAysnSuggest")
-        data = res.read()
+        data = self.decode_response(res)
         res_json = json.loads(data)
-        if res_json['status'] != True or not res_json['data'].has_key('loginCheck'):
+        if res_json['status'] != True or not res_json.has_key('data') or not res_json['data'].has_key('loginCheck'):
             logger.error(u"login failed:%s" % ''.join(res_json['messages']))
             return False
         if res_json['data']['loginCheck'] == 'Y':
