@@ -814,6 +814,7 @@ class HttpAuto:
         data = self.decode_response(res)
         res_json = json.loads(data)
         logger.info("recv resultOrderForDcQueue")
+        logger.info(data.decode("utf-8"))
         if res_json['data'].get('submitStatus') != True:
             err_msg = res_json['data']['errMsg'].encode('utf8')
             success_msg = u"网络传输过程中数据丢失，请查看未完成订单，继续支付！".encode('utf8')
@@ -821,9 +822,8 @@ class HttpAuto:
                 logger.info(u"存在未完成订单，买票可能成功!")
                 return True
             else:
-                logger.info("get result error:")
+                logger.info("get result error")
                 return False
-            logger.info(data.decode("utf-8"))
         else:
             logger.info("#############################resultOrderForDcQueue Success #########")
             return True
@@ -849,27 +849,23 @@ class HttpAuto:
         data = self.decode_response(res)
         res_json = json.loads(data)
         logger.info("recv queryMyOrderNoComplete")
+        logger.info(data.decode("utf-8"))
         if res_json['status'] != True:
             logger.info(u"queryMyOrderNoComplete Fail!")
-            logger.error(data.decode("utf-8"))
             return 2
         if not res_json.has_key('data'):
             logger.info(u"暂时没有订单信息!等待下次查询")
-            logger.error(data.decode("utf-8"))
             return 1
         if res_json['data'].has_key('orderCacheDTO'):
             if res_json['data']['orderCacheDTO'].has_key['message']:
                 logger.info(u"出票失败! %s", res_json['data']['orderCacheDTO'].has_key['message']['message'])
-                logger.error(data.decode("utf-8"))
                 return 3
             else:
                 logger.info(u"出票排队中!")
-                logger.error(data.decode("utf-8"))
                 return 1
         if res_json['data'].has_key('orderDBList'):
             logger.info(u"出票成功，请用浏览器打开未完成订单!")
             return 0
-        logger.error(data.decode("utf-8"))
         return 2
 
     @retries(3)
