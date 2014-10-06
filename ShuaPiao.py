@@ -827,7 +827,11 @@ class HttpAuto:
         if res_json['data'].get('submitStatus') != True:
             err_msg = res_json['data']['errMsg'].encode('utf8')
             success_msg = u"网络传输过程中数据丢失，请查看未完成订单，继续支付！".encode('utf8')
+            success_msg2 = u"获取订单信息失败，请查看未完成订单，继续支付！".encode('utf8')
             if err_msg == success_msg:
+                logger.info(u"存在未完成订单，买票可能成功!")
+                return True
+            elif err_msg == success_msg2:
                 logger.info(u"存在未完成订单，买票可能成功!")
                 return True
             else:
