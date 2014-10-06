@@ -1028,6 +1028,7 @@ def main(conf_name):
             logger.error(u"可能服务器挂掉，或次连接被封，请重试！")
             ha_login = False
         except Exception as e:
+            logger.error(e)
             return False
         finally:
             logger.info("Again!")
