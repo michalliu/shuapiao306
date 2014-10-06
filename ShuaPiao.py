@@ -23,7 +23,6 @@ from gui.captcha import  show_captcha
 
 
 CONF_NAME = './my_xml_conf.xml'
-MUSIC_NAME = './music.wav'
 ##############################################Conf#############################
 '''
    Config Class
@@ -455,6 +454,10 @@ class HttpAuto:
         if not len(result):
             return -2
         
+        # 查询到票，播放声音提醒
+        if g_conf.play_music:
+            play_music("./train.wav")
+
         #as the list prority
         if want_special:
             for train_code in g_conf.buy_list:
@@ -463,6 +466,9 @@ class HttpAuto:
                 self.buying_train = train_code
                 ret = self.buy(result[train_code])
                 if ret:
+                    # 播放订票成功的音乐
+                    if g_conf.play_music:
+                        play_music("./music.wav")
                     break
             if not ret:
                 logger.info("Err during buy")
@@ -494,6 +500,9 @@ class HttpAuto:
                 logger.info("Err during buy")
                 return -1
             else:
+                # 播放订票成功的音乐
+                if g_conf.play_music:
+                    play_music("./music.wav")
                 return 0
     
     @retries(3)           
@@ -938,11 +947,12 @@ class HttpAuto:
         self.proxy_ext_header["Referer"] = "https://kyfw.12306.cn/otn/confirmPassenger/initDc#nogo"
         #Step7
             #self.get_passenger_info
-        if g_conf.play_music:
-            play_music()
         #Step8
         if not self.check_rand_code():
             return False
+        #提交订票订单，停止播放音乐
+        if g_conf.play_music:
+            stop_music()
         #Step9
         if not self.checkOrderInfo():
             return False
@@ -1052,17 +1062,24 @@ def main(conf_name):
             return False
         finally:
             logger.info("Again!")
-            if g_conf.play_music:
-                play_music()
             os.system("pause")
+            if g_conf.play_music:
+                stop_music()
     return True
 
-def play_music():
-    logger.info("play music, name:%s" % MUSIC_NAME)
+def play_music(musicName):
+    logger.info("play music, name:%s" % musicName)
     try:
-        winsound.PlaySound(MUSIC_NAME, winsound.SND_ASYNC)
+        winsound.PlaySound(musicName, winsound.SND_ASYNC | winsound.SND_LOOP)
     except Exception as e:
         logger.error("play music failed!")
+
+def stop_music():
+    logger.info("stop music")
+    try:
+        winsound.PlaySound(None, winsound.SND_ASYNC)
+    except Exception as e:
+        logger.error("stop music failed!")
 
 if __name__ == '__main__':
     #test_ocr()
