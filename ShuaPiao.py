@@ -1087,6 +1087,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         CONF_NAME = sys.argv[1]
+    os.system("title %s" % os.getcwd())
     main(CONF_NAME)
     os.system("pause")
  
