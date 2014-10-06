@@ -155,6 +155,8 @@ def retries(max_tries):
                     restart_conn(conn)
                 except UnFinishedException as e:
                     raise e
+                except InsufficientTicketException as e:
+                    raise e
                 except Exception as e:
                     if tries_remaining > 0:
                         logger.error("catch exception, retry for the %d time" % tries_remaining)
