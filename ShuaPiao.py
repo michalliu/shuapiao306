@@ -132,6 +132,8 @@ class ShuaPiaoException(Exception):
 class UnFinishedException(ShuaPiaoException):
     pass
 
+class InsufficientTicketException(ShuaPiaoException):
+    pass
 
 #restart conn
 def restart_conn(conn):
@@ -920,23 +922,24 @@ class HttpAuto:
         u"""
         检查是否存在成功但未支付的订单
         """
-        return self.get_order_status(0);
+        return self.get_order_status(0) == 0;
 
     def get_order_status(self, phase):
         u"""
         获取当前帐号订单状态
-        True 有未付款的成功订单
-        False 没有未付款订单
+        0 有未付款的成功订单
+        2 出票失败
+        3 出票失败，没有足够的票
         """
+        order_stat=None
         while 1:
             order_stat=self.queryMyOrderNoComplete(phase)
-            if order_stat == 0:
-                return True
-            elif order_stat == 1:
+            if order_stat != 1:
+                break
+            else:
                 time.sleep(1) # recheck order status
                 continue
-            elif order_stat > 1:
-                return False
+        return order_stat
 
     def buy(self, item):
         #Step4
@@ -971,7 +974,10 @@ class HttpAuto:
         #Step13
         if not self.resultOrderForDcQueue():
             return False
-        return self.get_order_status(1)
+        order_status=self.get_order_status(1)
+        if order_status == 3:
+            raise InsufficientTicketException
+        return order_status == 0
 
 def clean_temp_files():
     logger.info("clean_temp_files")
@@ -1058,6 +1064,8 @@ def main(conf_name):
             ha.query()
         except UnFinishedException as e:
             logger.error(u"未完成的订单，请用浏览器查看！")
+        except InsufficientTicketException as e:
+            logger.error(u"本次订票未成功，出票失败！")
         except ValueError as e:
             logger.error(u"可能服务器挂掉，或次连接被封，请重试！")
             ha_login = False
