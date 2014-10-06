@@ -26,7 +26,7 @@ options = {
 }
 
 executables = [
-    Executable('ShuaPiao.py', base=base)
+    Executable('ShuaPiao.py', base=base, icon="ShuaPiao.ico")
 ]
 
 setup(name=u'ShuaPiao306',
