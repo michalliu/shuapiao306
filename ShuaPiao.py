@@ -19,7 +19,7 @@ import cProfile
 import subprocess
 import winsound
 import xml.etree.ElementTree
-from gui.captcha import  show_captcha
+from gui.captchaQt import  show_captcha
 
 
 CONF_NAME = './my_xml_conf.xml'
@@ -135,6 +135,9 @@ class UnFinishedException(ShuaPiaoException):
 class InsufficientTicketException(ShuaPiaoException):
     pass
 
+class TickServiceDownException(ShuaPiaoException):
+    pass
+
 #restart conn
 def restart_conn(conn):
     logger.error("conneciont error, reconnect")
@@ -156,6 +159,8 @@ def retries(max_tries):
                 except UnFinishedException as e:
                     raise e
                 except InsufficientTicketException as e:
+                    raise e
+                except TickServiceDownException as e:
                     raise e
                 except Exception as e:
                     if tries_remaining > 0:
@@ -743,9 +748,12 @@ class HttpAuto:
             logger.error("submitOrderRequest failed:")
             logger.error(data.decode("utf-8"))
             sub_str = u"您还有未处理的订单".encode('utf8')
+            sub_str2 = u"当前时间不可以订票".encode('utf8')
             err_msg = ''.join(res_json['messages']).encode('utf8')
             if sub_str in err_msg:
                 raise UnFinishedException
+            elif sub_str2 in err_msg:
+                raise TickServiceDownException
             return False
         else:
             return True
@@ -872,9 +880,13 @@ class HttpAuto:
             logger.info(data.decode("utf-8"))
         if res_json['status'] != True:
             logger.info(u"queryMyOrderNoComplete Fail!")
+            if phase == 0:
+                logger.info(data.decode("utf-8"))
             return 2
         if not res_json.has_key('data'):
             logger.info(u"暂时没有订单信息!等待下次查询")
+            if phase == 0:
+                logger.info(data.decode("utf-8"))
             return 1
         if res_json['data'].has_key('orderCacheDTO'):
             if res_json['data']['orderCacheDTO'].has_key('message'):
@@ -1068,6 +1080,8 @@ def main(conf_name):
             logger.error(u"未完成的订单，请用浏览器查看！")
         except InsufficientTicketException as e:
             logger.error(u"本次订票未成功，出票失败！")
+        except TickServiceDownException as e:
+            logger.error(u"非订票时间，无法订票！")
         except ValueError as e:
             logger.error(u"可能服务器挂掉，或次连接被封，请重试！")
             ha_login = False
@@ -1076,9 +1090,9 @@ def main(conf_name):
             return False
         finally:
             logger.info("Again!")
-            os.system("pause")
             if g_conf.play_music:
                 stop_music()
+            os.system("pause")
     return True
 
 def play_music(musicName):
