@@ -829,15 +829,17 @@ class HttpAuto:
             return True
 
     @retries(3)
-    def queryMyOrderNoComplete(self):
+    def queryMyOrderNoComplete(self,phase):
         u"""
+        phase 0 登录后检查是否有未完成订单 1 订票请求发出后检查未完成订单
+        主要控制log记录
         检查订票是否成功
         0 订票成功
         1 状态不确定,订单排队处理中
         2 订票失败
         3 订票失败，没有足够的票
         """
-        logger.info("#############################Step14:queryMyOrderNoComplete #########")
+        logger.info("############################# queryMyOrderNoComplete #########")
         url_result = "https://kyfw.12306.cn/otn/queryOrder/queryMyOrderNoComplete"
         data = [
                 ('_json_att', '')
@@ -849,7 +851,8 @@ class HttpAuto:
         data = self.decode_response(res)
         res_json = json.loads(data)
         logger.info("recv queryMyOrderNoComplete")
-        logger.info(data.decode("utf-8"))
+        if phase == 1:
+            logger.info(data.decode("utf-8"))
         if res_json['status'] != True:
             logger.info(u"queryMyOrderNoComplete Fail!")
             return 2
@@ -857,14 +860,19 @@ class HttpAuto:
             logger.info(u"暂时没有订单信息!等待下次查询")
             return 1
         if res_json['data'].has_key('orderCacheDTO'):
-            if res_json['data']['orderCacheDTO'].has_key['message']:
-                logger.info(u"出票失败! %s", res_json['data']['orderCacheDTO'].has_key['message']['message'])
+            if res_json['data']['orderCacheDTO'].has_key('message'):
+                if phase == 1:
+                    try:
+                        logger.info(u"出票失败! %s", res_json['data']['orderCacheDTO']['message']['message'])
+                    except KeyError as e:
+                        logger.info(u"出票失败!")
                 return 3
             else:
                 logger.info(u"出票排队中!")
                 return 1
         if res_json['data'].has_key('orderDBList'):
-            logger.info(u"出票成功，请用浏览器打开未完成订单!")
+            if phase == 1:
+                logger.info(u"出票成功，请用浏览器打开未完成订单!")
             return 0
         return 2
 
@@ -894,6 +902,28 @@ class HttpAuto:
         else:
             data = res.read()
         return data;
+
+    def has_success_order(self):
+        u"""
+        检查是否存在成功但未支付的订单
+        """
+        return self.get_order_status(0);
+
+    def get_order_status(self, phase):
+        u"""
+        获取当前帐号订单状态
+        True 有未付款的成功订单
+        False 没有未付款订单
+        """
+        while 1:
+            order_stat=self.queryMyOrderNoComplete(phase)
+            if order_stat == 0:
+                return True
+            elif order_stat == 1:
+                time.sleep(1) # recheck order status
+                continue
+            elif order_stat > 1:
+                return False
 
     def buy(self, item):
         #Step4
@@ -927,20 +957,7 @@ class HttpAuto:
         #Step13
         if not self.resultOrderForDcQueue():
             return False
-        #Step14
-        order_success=False
-        while 1:
-            order_stat=self.queryMyOrderNoComplete()
-            if order_stat == 0:
-                order_success = True
-                break;
-            elif order_stat == 1:
-                time.sleep(1) # recheck order status
-                continue
-            elif order_stat > 1:
-                order_success = False
-                break
-        return order_success
+        return self.get_order_status(1)
 
 def clean_temp_files():
     logger.info("clean_temp_files")
@@ -1021,6 +1038,9 @@ def main(conf_name):
                 if not ha.loginAysnSuggest():
                     return False
                 has_login = True
+            if ha.has_success_order():
+                logger.error(u"当前帐号存在未完成的订单，请取消或支付订单后才能继续！")
+                return False
             ha.query()
         except UnFinishedException as e:
             logger.error(u"未完成的订单，请用浏览器查看！")
