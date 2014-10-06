@@ -822,8 +822,8 @@ class HttpAuto:
                 return True
             else:
                 logger.info("get result error:")
-                logger.error(data.decode("utf-8"))
                 return False
+            logger.info(data.decode("utf-8"))
         else:
             logger.info("#############################resultOrderForDcQueue Success #########")
             return True
@@ -833,7 +833,7 @@ class HttpAuto:
         u"""
         检查订票是否成功
         0 订票成功
-        1 订单排队中
+        1 状态不确定,订单排队处理中
         2 订票失败
         3 订票失败，没有足够的票
         """
@@ -854,9 +854,9 @@ class HttpAuto:
             logger.error(data.decode("utf-8"))
             return 2
         if not res_json.has_key('data'):
-            logger.info(u"没有订单信息!")
+            logger.info(u"暂时没有订单信息!等待下次查询")
             logger.error(data.decode("utf-8"))
-            return 2
+            return 1
         if res_json['data'].has_key('orderCacheDTO'):
             if res_json['data']['orderCacheDTO'].has_key['message']:
                 logger.info(u"出票失败! %s", res_json['data']['orderCacheDTO'].has_key['message']['message'])
